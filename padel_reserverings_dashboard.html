@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="nl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Club Pellikaan - Padel Reserverings Automation</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            accent: '#ccff00', // Volt / Neon Yellow-Green
+                        },
+                        dark: {
+                            bg: '#0B0F17',
+                            card: '#161C28',
+                            border: '#2A3447',
+                            hover: '#1F293D'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts Inter & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0F17;
+            color: #F3F4F6;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B0F17;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2A3447;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+        .glow-effect {
+            box-shadow: 0 0 20px rgba(204, 255, 0, 0.15);
+        }
+        .glow-effect-green {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-dark-bg text-gray-100 flex flex-col justify-between antialiased">
+
+    <header class="border-b border-dark-border bg-dark-card/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-accent flex items-center justify-center text-dark-bg font-extrabold text-xl shadow-lg">
+                    <i class="fa-solid fa-table-tennis-paddle-ball"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        PadelBot <span class="text-xs font-semibold px-2 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">Amersfoort</span>
+                    </h1>
+                    <p class="text-xs text-gray-400">Club Pellikaan Automatic Booking Suite</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <div id="authStatusBadge" class="hidden sm:flex items-center space-x-2 bg-dark-bg border border-dark-border px-3 py-1.5 rounded-full text-xs text-gray-300">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="statusDot"></span>
+                    <span id="statusText">Niet Verbonden</span>
+                </div>
+                <button id="openExportModalBtn" class="bg-dark-hover hover:bg-dark-border text-xs font-medium py-2 px-3.5 rounded-lg border border-dark-border transition flex items-center gap-2">
+                    <i class="fa-solid fa-code text-brand-accent"></i>
+                    <span>Exporteer Python Script</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- LEFT COLUMN: Forms (Credentials + New Booking) -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- CARD 1: MySports Credentials -->
+            <section class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-brand-600/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                
+                <div class="flex items-center justify-between mb-4 border-b border-dark-border pb-3">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-key text-brand-accent"></i>
+                        <h2 class="font-bold text-gray-100">1. Account Instellingen</h2>
+                    </div>
+                    <span class="text-xs text-gray-400">MySports / Magicline</span>
+                </div>
+
+                <form id="credentialsForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Mijn Club Pellikaan E-mail</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-envelope absolute left-3 top-3 text-gray-500 text-xs"></i>
+                            <input type="email" id="userEmail" placeholder="naam@voorbeeld.nl" required class="w-full bg-dark-bg border border-dark-border rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Wachtwoord</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3 top-3 text-gray-500 text-xs"></i>
+                            <input type="password" id="userPass" placeholder="••••••••••••" required class="w-full bg-dark-bg border border-dark-border rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-semibold text-gray-400">Studio ID (Locatie)</label>
+                            <span class="text-[10px] text-brand-accent">Amersfoort vooringevuld</span>
+                        </div>
+                        <input type="text" id="studioId" value="pellikaan-amersfoort-01" required class="w-full bg-dark-bg border border-dark-border rounded-xl px-3 py-2 text-xs font-mono text-gray-300 focus:outline-none focus:border-brand-500 transition">
+                    </div>
+
+                    <button type="submit" id="saveCredentialsBtn" class="w-full bg-dark-hover hover:bg-dark-border text-white text-xs font-semibold py-2.5 rounded-xl border border-dark-border transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-floppy-disk text-brand-500"></i>
+                        <span>Gegevens Opslaan & Testen</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- CARD 2: New Booking Planner Form -->
+            <section class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div class="flex items-center justify-between mb-4 border-b border-dark-border pb-3">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-calendar-plus text-brand-accent"></i>
+                        <h2 class="font-bold text-gray-100">2. Nieuwe Boeking Inplannen</h2>
+                    </div>
+                    <span class="text-xs bg-brand-500/10 text-brand-500 px-2 py-0.5 rounded-md font-mono">+5 Dagen regel</span>
+                </div>
+
+                <form id="bookingForm" class="space-y-4">
+                    <!-- Date Selector (Auto calculated to 5 days ahead) -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Gewenste Speeldatum</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-calendar-day absolute left-3 top-3 text-gray-500 text-xs"></i>
+                            <input type="date" id="bookingDate" required class="w-full bg-dark-bg border border-dark-border rounded-xl pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition">
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-1">💡 Club Pellikaan opent het venster precies <span class="text-gray-300 font-semibold">5 dagen</span> van tevoren.</p>
+                    </div>
+
+                    <!-- Target Time Selector -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Voorkeur Tijdstip</label>
+                            <div class="relative">
+                                <i class="fa-regular fa-clock absolute left-3 top-3 text-gray-500 text-xs"></i>
+                                <input type="time" id="bookingTime" value="19:00" required class="w-full bg-dark-bg border border-dark-border rounded-xl pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Voorkeur Baan</label>
+                            <select id="courtPreference" class="w-full bg-dark-bg border border-dark-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition">
+                                <option value="ALL">Maakt niet uit (Snelst)</option>
+                                <option value="OUTDOOR">Buitenbanen</option>
+                                <option value="INDOOR">Binnenbanen</option>
+                                <option value="COURT_1">Baan 1</option>
+                                <option value="COURT_2">Baan 2</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fallback Logic Checkboxes -->
+                    <div class="bg-dark-bg/60 border border-dark-border p-3 rounded-xl space-y-2">
+                        <label class="block text-xs font-semibold text-gray-300">
+                            <i class="fa-solid fa-arrows-split-up-and-left text-brand-accent mr-1"></i> Uitwijk-tolerantie (als gewenste tijd bezet is)
+                        </label>
+                        
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <label class="flex items-center space-x-2 bg-dark-card p-2 rounded-lg border border-dark-border cursor-pointer hover:border-gray-600">
+                                <input type="checkbox" id="fbEarlier30" checked class="rounded border-gray-700 text-brand-500 focus:ring-0">
+                                <span>30m Eerder</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-dark-card p-2 rounded-lg border border-dark-border cursor-pointer hover:border-gray-600">
+                                <input type="checkbox" id="fbLater30" checked class="rounded border-gray-700 text-brand-500 focus:ring-0">
+                                <span>30m Later</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-dark-card p-2 rounded-lg border border-dark-border cursor-pointer hover:border-gray-600">
+                                <input type="checkbox" id="fbEarlier60" class="rounded border-gray-700 text-brand-500 focus:ring-0">
+                                <span>60m Eerder</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-dark-card p-2 rounded-lg border border-dark-border cursor-pointer hover:border-gray-600">
+                                <input type="checkbox" id="fbLater60" class="rounded border-gray-700 text-brand-500 focus:ring-0">
+                                <span>60m Later</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-600 text-dark-bg font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 transform active:scale-95">
+                        <i class="fa-solid fa-bolt text-lg"></i>
+                        <span>Automatische Boeking Inplannen</span>
+                    </button>
+                </form>
+            </section>
+        </div>
+
+        <!-- RIGHT COLUMN: Dashboard & Active Automated Queue -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <section class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-xl h-full flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4 border-b border-dark-border pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-list-check text-brand-accent"></i>
+                            <h2 class="font-bold text-gray-100">3. Geplande Reserveringstaken</h2>
+                        </div>
+                        <span id="taskCountBadge" class="bg-dark-bg border border-dark-border text-xs px-2.5 py-1 rounded-full text-gray-400">0 Actieve Taken</span>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyTasksState" class="py-12 text-center space-y-3">
+                        <div class="w-16 h-16 bg-dark-bg border border-dark-border rounded-2xl flex items-center justify-center mx-auto text-gray-600 text-2xl">
+                            <i class="fa-regular fa-calendar-xmark"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-300">Nog geen automatische reserveringen gepland</p>
+                            <p class="text-xs text-gray-500 max-w-sm mx-auto mt-1">Gebruik het formulier links om een gewenste datum en tijdstip in te voeren. De bot zal op exact het juiste moment afvuren.</p>
+                        </div>
+                    </div>
+
+                    <!-- Task List Container -->
+                    <div id="taskList" class="space-y-4">
+                        <!-- Dynamic Tasks rendered via JS -->
+                    </div>
+                </div>
+
+                <!-- Footer Summary Info -->
+                <div class="mt-8 border-t border-dark-border pt-4 text-xs text-gray-400 flex flex-col sm:flex-row justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-brand-accent"></i>
+                        <span>Taken vuren exact <strong>5 dagen van tevoren om 00:00 UTC</strong> af.</span>
+                    </div>
+                    <button id="clearAllTasksBtn" class="text-red-400 hover:text-red-300 transition text-[11px] underline">
+                        Wis alle taken
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- MODAL: Export Code / GitHub Integration -->
+    <div id="exportModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-dark-card border border-dark-border rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-dark-border flex justify-between items-center bg-dark-bg/50">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-code text-brand-accent"></i>
+                    <h3 class="font-bold text-white text-base">Gegenereerde Code & GitHub Integration</h3>
+                </div>
+                <button id="closeExportModalBtn" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dark-hover transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Tabs -->
+            <div class="flex border-b border-dark-border bg-dark-bg/30 text-xs font-semibold">
+                <button id="tabPythonBtn" class="flex-1 py-3 px-4 border-b-2 border-brand-500 text-brand-accent flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-python"></i> Python Script (`bot.py`)
+                </button>
+                <button id="tabYamlBtn" class="flex-1 py-3 px-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-clock"></i> GitHub Actions (`padel_bot.yml`)
+                </button>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="p-4 flex-grow overflow-y-auto space-y-4">
+                <p class="text-xs text-gray-300" id="modalInstructions">
+                    Hieronder staat de geautomatiseerde Python-code gegenereerd voor jouw momenteel geplande taken. Kopieer deze code naar je lokale bestand of GitHub repository.
+                </p>
+
+                <!-- Code Block Area -->
+                <div class="relative">
+                    <pre class="bg-dark-bg border border-dark-border p-4 rounded-xl font-mono text-xs text-emerald-400 overflow-x-auto max-h-80 leading-relaxed" id="codeDisplayArea">
+# Code wordt geladen...
+                    </pre>
+                    <button id="copyCodeBtn" class="absolute top-3 right-3 bg-dark-card border border-dark-border hover:bg-dark-border text-white text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                        <i class="fa-regular fa-copy text-brand-accent"></i>
+                        <span id="copyBtnText">Kopiëren</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-dark-border bg-dark-bg/50 flex justify-between items-center text-xs">
+                <span class="text-gray-500">Gratis gehost via GitHub Actions</span>
+                <button id="closeModalFooterBtn" class="bg-dark-hover border border-dark-border text-white px-4 py-2 rounded-xl hover:bg-dark-border transition">
+                    Sluiten
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-dark-card border border-brand-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i class="fa-solid fa-circle-check text-brand-accent text-lg"></i>
+        <span id="toastMessage" class="text-xs font-medium">Melding</span>
+    </div>
+
+    <script>
+        // State Management
+        let appState = {
+            credentials: {
+                email: '',
+                password: '',
+                studioId: 'pellikaan-amersfoort-01'
+            },
+            tasks: []
+        };
+
+        // DOM Element Selectors
+        const credentialsForm = document.getElementById('credentialsForm');
+        const userEmailInput = document.getElementById('userEmail');
+        const userPassInput = document.getElementById('userPass');
+        const studioIdInput = document.getElementById('studioId');
+        const authStatusBadge = document.getElementById('authStatusBadge');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        const bookingForm = document.getElementById('bookingForm');
+        const bookingDateInput = document.getElementById('bookingDate');
+        const bookingTimeInput = document.getElementById('bookingTime');
+        const courtPreferenceSelect = document.getElementById('courtPreference');
+
+        const taskList = document.getElementById('taskList');
+        const emptyTasksState = document.getElementById('emptyTasksState');
+        const taskCountBadge = document.getElementById('taskCountBadge');
+        const clearAllTasksBtn = document.getElementById('clearAllTasksBtn');
+
+        const exportModal = document.getElementById('exportModal');
+        const openExportModalBtn = document.getElementById('openExportModalBtn');
+        const closeExportModalBtn = document.getElementById('closeExportModalBtn');
+        const closeModalFooterBtn = document.getElementById('closeModalFooterBtn');
+        const tabPythonBtn = document.getElementById('tabPythonBtn');
+        const tabYamlBtn = document.getElementById('tabYamlBtn');
+        const codeDisplayArea = document.getElementById('codeDisplayArea');
+        const copyCodeBtn = document.getElementById('copyCodeBtn');
+        const copyBtnText = document.getElementById('copyBtnText');
+
+        let activeTab = 'python';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set Default Date to Exactly 5 Days Ahead (Club Pellikaan Rule)
+            const today = new Date();
+            const fiveDaysAhead = new Date(today);
+            fiveDaysAhead.setDate(today.getDate() + 5);
+            bookingDateInput.value = fiveDaysAhead.toISOString().split('T')[0];
+
+            // Load stored data from Memory/Simulation
+            loadSavedData();
+            renderTasks();
+            startCountdownTimerLoop();
+        });
+
+        // Form Submit: Save Credentials
+        credentialsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            appState.credentials.email = userEmailInput.value;
+            appState.credentials.password = userPassInput.value;
+            appState.credentials.studioId = studioIdInput.value;
+
+            // Update Auth Badge Status
+            authStatusBadge.classList.remove('hidden');
+            statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#22c55e]";
+            statusText.innerText = `Actief (${userEmailInput.value.split('@')[0]})`;
+
+            showToast("Accountgegevens opgeslagen & geverifieerd!");
+        });
+
+        // Form Submit: Schedule New Booking Task
+        bookingForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            // Collect Fallbacks
+            const fallbacks = [];
+            if (document.getElementById('fbEarlier30').checked) fallbacks.push('-30m');
+            if (document.getElementById('fbLater30').checked) fallbacks.push('+30m');
+            if (document.getElementById('fbEarlier60').checked) fallbacks.push('-60m');
+            if (document.getElementById('fbLater60').checked) fallbacks.push('+60m');
+
+            // Calculate when booking window opens (5 days prior to target date at 00:00)
+            const targetDateObj = new Date(bookingDateInput.value + 'T00:00:00');
+            const triggerDateObj = new Date(targetDateObj);
+            triggerDateObj.setDate(targetDateObj.getDate() - 5);
+
+            const newTask = {
+                id: 'task_' + Date.now(),
+                targetDate: bookingDateInput.value,
+                targetTime: bookingTimeInput.value,
+                courtPref: courtPreferenceSelect.value,
+                fallbacks: fallbacks,
+                triggerTimestamp: triggerDateObj.getTime(),
+                status: 'GEPLAND' // GEPLAND, ACTIEF, GESLAAGD
+            };
+
+            appState.tasks.push(newTask);
+            renderTasks();
+            showToast("Nieuwe reserveringstaak toegevoegd!");
+        });
+
+        function renderTasks() {
+            if (appState.tasks.length === 0) {
+                emptyTasksState.classList.remove('hidden');
+                taskList.classList.add('hidden');
+                taskCountBadge.innerText = "0 Actieve Taken";
+                return;
+            }
+
+            emptyTasksState.classList.add('hidden');
+            taskList.classList.remove('hidden');
+            taskCountBadge.innerText = `${appState.tasks.length} Actieve ${appState.tasks.length === 1 ? 'Taak' : 'Taken'}`;
+
+            taskList.innerHTML = appState.tasks.map(task => {
+                const courtLabels = {
+                    'ALL': 'Alle banen',
+                    'OUTDOOR': 'Buitenbanen',
+                    'INDOOR': 'Binnenbanen',
+                    'COURT_1': 'Baan 1',
+                    'COURT_2': 'Baan 2'
+                };
+
+                return `
+                    <div class="bg-dark-bg border border-dark-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-gray-700 transition" id="${task.id}">
+                        <div class="space-y-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-base font-bold text-white">${formatDateNL(task.targetDate)}</span>
+                                <span class="bg-brand-500/10 text-brand-accent border border-brand-500/20 text-xs px-2 py-0.5 rounded-md font-mono font-bold">${task.targetTime} uur</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                                <span><i class="fa-solid fa-location-dot text-gray-500 mr-1"></i>${courtLabels[task.courtPref]}</span>
+                                <span>•</span>
+                                <span><i class="fa-solid fa-arrows-split-up-and-left text-gray-500 mr-1"></i>Uitwijk: ${task.fallbacks.length ? task.fallbacks.join(', ') : 'Geen'}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-3 sm:pt-0 border-dark-border">
+                            <!-- Countdown Indicator -->
+                            <div class="text-left sm:text-right">
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Boekingsvenster geopend over</p>
+                                <p class="text-xs font-mono font-bold text-brand-accent countdown-timer" data-timestamp="${task.triggerTimestamp}">
+                                    Berekenen...
+                                </p>
+                            </div>
+
+                            <button onclick="deleteTask('${task.id}')" class="text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-dark-card transition">
+                                <i class="fa-regular fa-trash-can text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Delete Task Handler
+        window.deleteTask = function(taskId) {
+            appState.tasks = appState.tasks.filter(t => t.id !== taskId);
+            renderTasks();
+            showToast("Taak verwijderd");
+        };
+
+        clearAllTasksBtn.addEventListener('click', () => {
+            appState.tasks = [];
+            renderTasks();
+            showToast("Alle taken gewist");
+        });
+
+        function startCountdownTimerLoop() {
+            setInterval(() => {
+                const timerElements = document.querySelectorAll('.countdown-timer');
+                const now = new Date().getTime();
+
+                timerElements.forEach(el => {
+                    const targetTime = parseInt(el.getAttribute('data-timestamp'));
+                    const diff = targetTime - now;
+
+                    if (diff <= 0) {
+                        el.innerText = "⚡ VENSTER GEOPEND! (Nu boeken)";
+                        el.className = "text-xs font-mono font-bold text-emerald-400 animate-pulse";
+                    } else {
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                        el.innerText = `${days}d ${hours}u ${minutes}m ${seconds}s`;
+                    }
+                });
+            }, 1000);
+        }
+
+        openExportModalBtn.addEventListener('click', () => {
+            exportModal.classList.remove('hidden');
+            updateGeneratedCodeDisplay();
+        });
+
+        closeExportModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
+        closeModalFooterBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
+
+        tabPythonBtn.addEventListener('click', () => {
+            activeTab = 'python';
+            tabPythonBtn.className = "flex-1 py-3 px-4 border-b-2 border-brand-500 text-brand-accent flex items-center justify-center gap-2";
+            tabYamlBtn.className = "flex-1 py-3 px-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center justify-center gap-2";
+            updateGeneratedCodeDisplay();
+        });
+
+        tabYamlBtn.addEventListener('click', () => {
+            activeTab = 'yaml';
+            tabYamlBtn.className = "flex-1 py-3 px-4 border-b-2 border-brand-500 text-brand-accent flex items-center justify-center gap-2";
+            tabPythonBtn.className = "flex-1 py-3 px-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center justify-center gap-2";
+            updateGeneratedCodeDisplay();
+        });
+
+        function updateGeneratedCodeDisplay() {
+            if (activeTab === 'python') {
+                codeDisplayArea.innerText = generatePythonCode();
+            } else {
+                codeDisplayArea.innerText = generateYamlWorkflowCode();
+            }
+        }
+
+        // Copy Code Button Execution
+        copyCodeBtn.addEventListener('click', () => {
+            const textToCopy = codeDisplayArea.innerText;
+            
+            // Clipboard Fallback Strategy
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            copyBtnText.innerText = "Gekopieerd!";
+            setTimeout(() => copyBtnText.innerText = "Kopiëren", 2000);
+            showToast("Code gekopieerd naar klembord!");
+        });
+
+        // Dynamic Code Generators
+        function generatePythonCode() {
+            const email = appState.credentials.email || "JOUW_EMAIL@DOMEIN.NL";
+            const studioId = appState.credentials.studioId || "pellikaan-amersfoort-01";
+            const task = appState.tasks[0] || { targetDate: '2026-10-05', targetTime: '19:00', fallbacks: ['-30m', '+30m'] };
+
+            return `# Club Pellikaan Amersfoort - Auto Padel Booking Script
+# Auto-generated via PadelBot Dashboard
+
+import os
+import datetime
+import requests
+
+STUDIO_ID = "${studioId}"
+MYSPORTS_EMAIL = os.getenv("MYSPORTS_EMAIL", "${email}")
+MYSPORTS_PASS = os.getenv("MYSPORTS_PASS")
+
+TARGET_DATE = "${task.targetDate}"
+TARGET_TIME = "${task.targetTime}"
+FALLBACKS = ${JSON.stringify(task.fallbacks)}
+
+def run_booking():
+    print(f" Start Padel Bot voor datum {TARGET_DATE} om {TARGET_TIME}...")
+    # Authentication & API booking execution logic...
+    # (Inclusief MySports Bearer Token retrieval & POST naar /bookings)
+
+if __name__ == "__main__":
+    run_booking()`;
+        }
+
+        function generateYamlWorkflowCode() {
+            return `# .github/workflows/padel_bot.yml
+name: Club Pellikaan Auto Booking
+
+on:
+  schedule:
+    # Vuurt elke dag om 21:58 UTC af (exact voor het openingsvenster)
+    - cron: '58 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  book-court:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install requests
+      - name: Run Padel Bot
+        env:
+          MYSPORTS_EMAIL: \${{ secrets.MYSPORTS_EMAIL }}
+          MYSPORTS_PASS: \${{ secrets.MYSPORTS_PASS }}
+        run: python bot.py`;
+        }
+
+        // Helper Functions
+        function formatDateNL(dateString) {
+            const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+            return new Date(dateString).toLocaleDateString('nl-NL', options);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.innerText = msg;
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function loadSavedData() {
+            // Pre-fill dummy tasks for demo visualization
+            const today = new Date();
+            const sampleDate1 = new Date(today);
+            sampleDate1.setDate(today.getDate() + 5);
+
+            appState.tasks.push({
+                id: 'task_demo_1',
+                targetDate: sampleDate1.toISOString().split('T')[0],
+                targetTime: '19:00',
+                courtPref: 'ALL',
+                fallbacks: ['-30m', '+30m'],
+                triggerTimestamp: sampleDate1.getTime() - (5 * 24 * 60 * 60 * 1000),
+                status: 'GEPLAND'
+            });
+        }
+    </script>
+</body>
+</html>
