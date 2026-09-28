@@ -1,23 +1,29 @@
-# .github/workflows/padel_bot.yml
 name: Club Pellikaan Auto Booking
 
 on:
   schedule:
-    # Vuurt elke dag om 21:58 UTC af (exact voor het openingsvenster)
+    # Vuurt elke dag om 21:58 UTC af (exact voor 00:00 uur Nederlandse tijd)
     - cron: '58 21 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Zorgt ervoor dat je de bot ook handmatig kunt testen via GitHub
 
 jobs:
   book-court:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Code ophalen
+        uses: actions/checkout@v4
+
+      - name: Python instellen
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - run: pip install requests
+
+      - name: Packages installeren
+        run: pip install requests
+
       - name: Run Padel Bot
         env:
-          MYSPORTS_EMAIL: ${{ secrets.MYSPORTS_EMAIL }}
-          MYSPORTS_PASS: ${{ secrets.MYSPORTS_PASS }}
-        run: python bot.py
+          SPORTSCHOOL_USER: ${{ secrets.SPORTSCHOOL_USER }}
+          SPORTSCHOOL_PASS: ${{ secrets.SPORTSCHOOL_PASS }}
+          GH_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
+        run: python club_pellikaan_bot.py
